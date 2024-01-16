@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Gene Set Pubmed</title>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    </head>
+    <body>
+        <div id="phenotype">
+            <img src="">
+            <h1>Disease Score Based on Input Phenotypes</h1>
+            <br>
+            <form action="submit_phenotyes" method="post">
+                Enter the set of HPO phenotype codes separated by commas
+                <p/>
+                <textarea id="input_phenotype_set" name="input_phenotype_set" rows="2" cols="150">
+                </textarea>
+                <p/>
+                <input type="submit" value="Submit Phenotypes" id="submit_phenotypes">
+    
+    
+                <br>
+                {% for message in get_flashed_messages(category_filter=['list_genes_input']) %}
+                    <strong>Genes entered by the user</strong>
+                    <p> {{message}} </p>
+                {% endfor %}
+                {% for message in get_flashed_messages(category_filter=['list_genes_used']) %}
+                    <strong>Genes found and used for the abstracts</strong>
+                    <p> {{message}} </p>
+                {% endfor %}
+                {% for message in get_flashed_messages(category_filter=['abstract_biology']) %}
+                    <strong>Biology abstract</strong>
+                    <p> <div>{{message}}</div> </p>
+                {% endfor %}
+            </form>
+            </div>
+    </body>
+</html>
+

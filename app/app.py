@@ -38,10 +38,13 @@ def submit_phenotypes():
         conn = phenotype_utils.get_connection()
 
         # get the result diseases
-        map_disease = phenotype_utils.get_disease_score_for_phenotype_list(conn=conn, list_curies=list_select, log=False)
+        # map_disease = phenotype_utils.get_disease_score_for_phenotype_list(conn=conn, list_curies=list_select, log=False)
+        list_disease = phenotype_utils.get_disease_score_sorted_list_for_phenotype_list(conn=conn, list_curies=list_select, log=False)
+        print("got disease list size of: {}".format(len(list_disease)))
 
         # add to map
-        map_result['results'] = map_disease
+        # map_result['results'] = map_disease
+        map_result['results'] = list_disease
 
     # return
     return map_result

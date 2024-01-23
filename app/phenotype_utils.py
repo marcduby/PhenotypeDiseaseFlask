@@ -118,7 +118,38 @@ def get_prevalence_for_list(list_curies, log=False):
     return map_results
 
 
-def get_disease_score_for_phenotype_list(conn, list_curies, log=False):
+def get_disease_score_sorted_list_for_phenotype_list(conn, list_curies, log=False):
+    '''
+    will return sorted map of disease scores and their asscociated phenotypes/prevlance
+    '''
+    # initialize
+    list_result = []
+    map_result = {}
+
+    # get the results
+    map_result = get_disease_score_map_for_phenotype_list(conn=conn, list_curies=list_curies, log=log)
+
+    # sort
+    list_result = sorted(map_result.values(), key=lambda x: x['score'], reverse=True) 
+
+    # return
+    return list_result
+
+def get_curie_name_map(list_curies, log=False):
+    '''
+    returns a map of key curies and values the name of the phenotype
+    '''
+    map_result = {}
+
+    # for each phenotype, get the name
+    for item in list_curies:
+        map_result[item] = get_rest_name_for_curie(curie=item, log=log)
+
+    # return
+    return map_result
+
+
+def get_disease_score_map_for_phenotype_list(conn, list_curies, log=False):
     '''
     will return a map of disease scores and their asscociated phenotypes/prevlance
     '''
@@ -146,12 +177,13 @@ def get_disease_score_for_phenotype_list(conn, list_curies, log=False):
             print("got row with phenotype: {} and disease: {} - {}".format(phenotype_curie, disease_curie, disease_name))
         # create map entry if none for disease
         if not map_results.get(disease_curie):
-            map_results[disease_curie] = {'phenotypes': []}
+            map_results[disease_curie] = {'disease_id': disease_curie}
         # build map
         map_results.get(disease_curie)['disease_name'] = disease_name
+        if not map_results.get(disease_curie).get('phenotypes'):
+            map_results[disease_curie]['phenotypes'] = []
         map_results.get(disease_curie).get('phenotypes').append(phenotype_curie)
         
-
     # calculate score
     for key, value in map_results.items():
         score = 0
@@ -160,9 +192,81 @@ def get_disease_score_for_phenotype_list(conn, list_curies, log=False):
             score = score - math.log(prevalence)
         map_results.get(key)['score'] = score
 
+    # # for each disease row, add names to phenotypes
+    map_phenotype_names = get_rest_name_map_for_curie_list(list_curies=list_curies, log=log)
+    for key, value in map_results.items():
+        map_temp = {}
+        for item in value.get('phenotypes'):
+            name = map_phenotype_names.get(item)
+            map_temp[item] = name
+        value['phenotypes'] = map_temp
+
     # return
     return map_results
 
+
+def get_rest_name_for_curie(curie, log=False):
+    '''
+    get the normalized name for the curie
+    '''
+    # initialize
+    result_name = None
+    URL = "https://nodenormalization-sri.renci.org/get_normalized_nodes?curie={}"
+
+    # request
+    url = URL.format(curie)
+
+    if log:
+        print("querying url: {}".format(url))
+
+    response = requests.get(url)
+    json_result = response.json()
+
+    # get the name
+    if json_result.get(curie):
+        if json_result.get(curie).get('id'):
+            if json_result.get(curie).get('id').get('label'):
+                result_name = json_result.get(curie).get('id').get('label')
+
+    # return
+    return result_name
+
+
+def get_rest_name_map_for_curie_list(list_curies, log=False):
+    '''
+    get the normalized name for the curie
+    '''
+    # initialize
+    map_name = {}
+    URL = "https://nodenormalization-sri.renci.org/get_normalized_nodes?{}"
+    str_curie = "{}curie={}"
+
+    # build the curie list
+    str_input = ""
+    for index, item in enumerate(list_curies):
+        if index == 0:
+            str_input = str_input + str_curie.format('', item)
+        else:
+            str_input = str_input + str_curie.format('&', item)
+
+    # request
+    url = URL.format(str_input)
+
+    if log:
+        print("querying url: {}".format(url))
+
+    response = requests.get(url)
+    json_result = response.json()
+
+    # get the name
+    for curie in list_curies:
+        if json_result.get(curie):
+            if json_result.get(curie).get('id'):
+                if json_result.get(curie).get('id').get('label'):
+                    map_name[curie] = json_result.get(curie).get('id').get('label')
+
+    # return
+    return map_name
 
 # main
 if __name__ == "__main__":
@@ -190,5 +294,10 @@ if __name__ == "__main__":
     print()
     list_curies = ["HP:0000601","HP:0000403","HP:0000527","HP:0000400","HP:0000006","HP:0000369","HP:0000126","HP:0000143","HP:0000582","HP:0000463"]
     conn = get_connection()
-    map_disease = get_disease_score_for_phenotype_list(conn=conn, list_curies=list_curies, log=False)
+    map_disease = get_disease_score_map_for_phenotype_list(conn=conn, list_curies=list_curies, log=False)
     print("got prevalence response: \n{}".format(json.dumps(map_disease, indent=2)))
+
+    # test getting the phenotype names
+    list_curies = ["HP:0000601","HP:0000403","HP:0000527","HP:0000400","HP:0000006","HP:0000369","HP:0000126","HP:0000143","HP:0000582","HP:0000463"]
+    map_names = get_rest_name_map_for_curie_list(list_curies=list_curies)
+    print("got phenotype name map: {}".format(json.dumps(map_names, indent=2)))    
